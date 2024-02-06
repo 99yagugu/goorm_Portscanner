@@ -61,7 +61,7 @@ def port_scanner(target_host, ports_to_scan):
             print(f"Port {port} status for {service_name} is unknown")
 
 if __name__ == "__main__":
-    target_host = "127.0.0.1"  # 스캔할 호스트 IP 주소
+    target_host = "192.168.0.48"  # 스캔할 호스트 IP 주소
     ports_to_scan = [25]  # 스캔할 포트 목록 (포트 25로 설정)
 
     port_scanner(target_host, ports_to_scan)
