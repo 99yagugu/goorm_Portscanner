@@ -21,20 +21,20 @@ def SYN_scan(host, port):
         sock.close()
 
 def Telnet_scan(host):
-    port = [23]
+    port = 23
     service_name = "Telnet"
     try:
         tn = telnetlib.Telnet(host, port, timeout=5)  # Telnet 객체 생성 및 서버에 연결 (타임아웃 설정)
         banner = tn.read_until(b"\r\n", timeout=5).decode('utf-8').strip()  # 배너 정보 읽기
         tn.close()  # 연결 종료
-        return True, service_name, banner
+        return {'port': port, 'status': 'open', 'service_name': service_name, 'banner': banner}
     except ConnectionRefusedError:
-        return False, service_name, None  # 연결이 거부되었을 때
+        return {'port': port, 'status': 'closed', 'service_name': service_name, 'banner': None}  # 연결이 거부되었을 때
     except Exception as e:
-        return None, service_name, None  # 그 외 예외 발생 시
+        return {'port': port, 'status': 'error', 'service_name': service_name, 'banner': None}  # 그 외 예외 발생 시
 
 def SMTP_scan(host):
-    port = [25]
+    port = 25
     service_name = "SMTP"
     try:
         # 소켓 생성
@@ -46,12 +46,12 @@ def SMTP_scan(host):
         banner = sock.recv(1024).decode('utf-8').strip()  # 배너 정보 읽기
         sock.sendall(b"QUIT\r\n")  # QUIT 명령 전송
         sock.close()  # 연결 종료
-        return True, service_name, banner
+        return {'port': port, 'status': 'open', 'service_name': service_name, 'banner': banner}
     except Exception as e:
-        return None, service_name, None  # 예외 발생 시
+        return {'port': port, 'status': 'error', 'service_name': service_name, 'banner': None}  # 예외 발생 시
 
-def DNS_scan(host, port):
-    port = [53]
+def DNS_scan(host):
+    port = 53
     try:
         # UDP 소켓 생성
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -62,8 +62,8 @@ def DNS_scan(host, port):
 
         # 데이터 수신 시 포트가 열려 있다고 가정
         # UDP 스캔은 응답이 없어도 포트가 열려 있다고 가정합니다.
-        return True, "DNS", None
+        return {'port': port, 'status': 'open', 'service_name': 'DNS', 'banner': None}
     except Exception as e:
-        return False, "DNS", None
+        return {'port': port, 'status': 'closed', 'service_name': 'DNS', 'banner': None}
     finally:
         sock.close()
