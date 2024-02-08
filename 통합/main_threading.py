@@ -5,31 +5,26 @@ from scan import *
 def scan_all(host):
     # 각 스캔 작업을 함수와 연관 메타데이터(포트 번호)와 함께 정의
     scan_tasks = [
-        (port123_ntp, {'port': 123}),
-        (port445_smb, {'port': 445}),
-        (port902_vmware_soap, {'port': 902}),  # 902 포트만 스캔
-        (port3306_mysql, {'port': 3306}),
-        (IMAP_conn, {'port': 143}),
-        (IMAPS_conn, {'port': 993}),
-        (SNMP_conn, {'port': 161})
-        (Telnet_scan, {'port': 23}),
-        (SMTP_scan, {'port': 25}),
-        (DNS_scan, {'port': 53})
-    ]
+    (Telnet_scan, {}),
+    (SMTP_scan, {}),
+    (DNS_scan, {})
+]
 
     results = []  # 결과를 저장할 리스트
 
     with concurrent.futures.ThreadPoolExecutor() as executor:
         # 각 스캔 작업에 대한 future 생성
-        future_to_port = {executor.submit(task[0], host): task[1] for task in scan_tasks}
+        futures = [executor.submit(task[0], host, **task[1]) for task in scan_tasks]
 
-        for future in concurrent.futures.as_completed(future_to_port):
-            task_metadata = future_to_port[future]
+        # 모든 future 완료를 기다리고 결과 저장
+        for future in concurrent.futures.as_completed(futures):
             try:
                 result = future.result()
                 results.append(result)
             except Exception as e:
                 # 예외 발생 시 오류 메시지에 올바른 포트 번호를 포함
+                task_index = futures.index(future)
+                task_metadata = scan_tasks[task_index][1]
                 error_result = {'port': task_metadata['port'], 'status': 'error', 'error_message': str(e)}
                 results.append(error_result)
 
