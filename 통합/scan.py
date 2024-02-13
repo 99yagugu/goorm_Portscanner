@@ -1,9 +1,5 @@
-# 수정사항
-# servicename 출력하도록 수정하기
-# 함수 이름 통합
-# 443, 3389추가
-# 중복 코드 병합 - ftp, ssh 통합/smtp, ldap 통합
-# IMAP 시간 설정하기
+# python3.7 
+# IMAP, IMAPS 이름 중복 수정
 
 import socket
 import struct
@@ -52,7 +48,7 @@ def scan_smtp_ldap_port(ip, port):
     else:
         service_name = "알 수 없는 서비스"
 
-    response_data = {'service':service_name, 'port': port, 'state': 'closed', 'error': None}
+    response_data = {'service':service_name, 'port': port, 'state': 'closed'}
     
     if syn_scan(ip, port):
         try:
@@ -179,45 +175,33 @@ def scan_smb_port(host, port, timeout=1):
     connection.disconnect()
     return response_data
 
-def scan_vmware_soap_port(host, port, timeout=1):
-    response_data = {'service':'VMWARE_SOAP', 'port': port, 'state': 'closed'} 
+def scan_vmware_port(host, port=902, timeout=1):
+    response_data = {'service': 'VMWARE', 'port': port, 'state': 'closed'}
 
     try:
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.settimeout(timeout)
         sock.connect((host, port))
 
-        soap_request = f"""POST /sdk HTTP/1.1\r
-                            Host: {host}:{port}\r
-                            Content-Type: text/xml; charset=utf-8\r
-                            Content-Length: {{length}}\r
-                            SOAPAction: "urn:internalvim25/5.5"\r
-                            \r
-                            <?xml version="1.0" encoding="utf-8"?>
-                            <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:vim25="urn:vim25">
-                            <soapenv:Header/>
-                            <soapenv:Body>
-                                <vim25:RetrieveServiceContent>
-                                <vim25:_this type="ServiceInstance">ServiceInstance</vim25:_this>
-                                </vim25:RetrieveServiceContent>
-                            </soapenv:Body>
-                            </soapenv:Envelope>"""
-
-        body = soap_request.format(length=len(soap_request) - 2)
-        sock.sendall(body.encode('utf-8'))
-
-        response = sock.recv(4096)
+        response = sock.recv(1024)
         sock.close()
 
         if response:
             response_data['state'] = 'open'
-            response_data['response'] = response.decode('utf-8', errors='ignore')
+            try:
+                response_data['banner'] = response.decode('utf-8').strip()
+            except UnicodeDecodeError:
+                response_data['banner'] = response.hex()
         else:
             response_data['state'] = 'no response'
 
     except socket.error as e:
         response_data['state'] = 'error'
-        response_data['error'] = str(e)
+        response_data['error_message'] = str(e)
+
+    finally:
+        if sock:
+            sock.close()
 
     return response_data
 
@@ -247,13 +231,18 @@ def scan_mysql_port(host, port, timeout=1):
     
 
 def scan_imap_port(host, port, timeout = 5):    
-    response_data = {'service':'IMAP','port': port, 'state': 'closed'}
+    response_data = {'service':None,'port': port, 'state': 'closed'}
+    original_timeout = socket.getdefaulttimeout()
+    socket.setdefaulttimeout(timeout)
     
     try:
         if port == 993:
-            imap_server = imaplib.IMAP4_SSL(host,port, timeout=timeout)
+            imap_server = imaplib.IMAP4_SSL(host,port)
+            response_data['service'] = 'IMAPS'
         else:
-            imap_server = imaplib.IMAP4(host,port, timeout=timeout)
+            imap_server = imaplib.IMAP4(host,port)
+            response_data['service'] = 'IMAP'
+        
         # 배너정보 가져오기
         banner_info = imap_server.welcome
         response_data['state'] = 'open'
@@ -267,6 +256,9 @@ def scan_imap_port(host, port, timeout = 5):
     except Exception as e:
         response_data['state'] = 'error'
         response_data['error'] = str(e)
+    
+    finally:
+        socket.setdefaulttimeout(original_timeout)
         
     return response_data
 
@@ -333,7 +325,7 @@ def scan_ftp_ssh_port(host,port):
     response_data = {'service':service_name,'port': port, 'state': 'closed'}
 
     try:
-        # FTP 서버에 연결 시도
+        # 서버에 연결 시도
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.settimeout(5)  # 연결 시도 시간 초과 설정
         result = sock.connect_ex((host, port))
@@ -378,7 +370,7 @@ def scan_http_port(target_host, port):
             response_data['state'] = 'open'
             response_data['banner'] = banner
     except socket.timeout:
-        response_data['state'] = 'timeout'
+        response_data['state'] = 'closed'
         response_data['error'] = 'Connection timed out'
     except socket.error as e:
         response_data['state'] = 'error'
@@ -386,24 +378,33 @@ def scan_http_port(target_host, port):
 
     return response_data
 
-#다솜님 110
-def scan_pop3_port(target_host, port):
-    response_data = {'service':'POP3','port': port, 'state': 'closed'}
+# 다솜님 110, 873 병합
+def scan_pop3_rsync_port(ip, port):    
+    if port == 110:
+        service_name = 'POP3'
+    
+    elif port == 873:
+        service_name = 'RSYNC'
+    else:
+        service_name = '알 수 없는 서비스'
+        
+    response_data = {'service': service_name, 'port': port, 'state':'closed'}
+        
     try:
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.settimeout(3)
-        sock.connect((target_host, port))
-        response = sock.recv(1024).decode('utf-8')
+        socket.setdefaulttimeout(3)
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.connect((ip, port))
+        response = s.recv(1024).decode('utf-8').strip()
         response_data['state'] = 'open'
-        response_data['banner'] = response.strip()
+        response_data['banner'] = response
     except socket.timeout:
-        response_data['state'] = 'no response'
+        response_data['state'] = 'closed'
+        response_data['error'] = 'Connection timed out'
     except Exception as e:
         response_data['state'] = 'error'
-        response_data['error'] = str(e)
+        response_data['error_message'] = str(e)
     finally:
-        if sock:
-            sock.close()
+        s.close() if 's' in locals() else None
 
     return response_data
 
@@ -425,5 +426,3 @@ def scan_rdp_port(ip, port=3389):
     else:
         response_data['state'] = 'closed or filtered'
     return response_data
-
-    
