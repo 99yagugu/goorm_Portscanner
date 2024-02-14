@@ -10,22 +10,23 @@ def scan_all(host):
         (scan_smtp_ldap_port, {'port': 25}),
         (scan_dns_port, {'port': 53}),
         (scan_http_port, {'port': 80}),
+        (scan_pop3_port, {'port': 110}),
+        #(scan_rpcbind_port, {'port': 111}),
         (scan_ntp_port, {'port': 123}),
         (scan_imap_port, {'port': 143}),
-        (scan_snmp_port, {'port': 161}),
-        (scan_smtp_ldap_port, {'port': 389}),
-        (scan_ssl_port, {'port': 443}),
+        # (scan_snmp_port, {'port': 161}),
+        (scan_ldap_port, {'port': 389}),
+        (scan_https_port, {'port': 443}),
         (scan_smb_port, {'port': 445}),
         (scan_ssl_port, {'port': 465}),
         (scan_udp_port, {'port': 520}),
         (scan_smtp_ldap_port, {'port': 587}),
         (scan_ssl_port, {'port': 636}),
-        (scan_vmware_port, {'port': 902}),
+        # (scan_vmware_port, {'port': 902}),
         (scan_imap_port, {'port': 993}),
         (scan_mysql_port, {'port': 3306}),
         (scan_rdp_port, {'port': 3389}),
-        (scan_pop3_rsync_port, {'port': 873}),
-        (scan_pop3_rsync_port, {'port': 110})
+        (scan_rsync_port, {'port': 135})
     ]
 
     results = []
