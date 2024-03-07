@@ -1,6 +1,6 @@
 from flask import Flask, request, render_template
 from main import scan_all
-from redis import Redis
+#from redis import Redis
 
 app = Flask(__name__)
 
